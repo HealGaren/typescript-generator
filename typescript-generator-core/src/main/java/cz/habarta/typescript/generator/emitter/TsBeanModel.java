@@ -4,6 +4,7 @@ package cz.habarta.typescript.generator.emitter;
 import cz.habarta.typescript.generator.TsType;
 import cz.habarta.typescript.generator.compiler.Symbol;
 import cz.habarta.typescript.generator.util.Utils;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +18,7 @@ public class TsBeanModel extends TsDeclarationModel {
     private final List<TsType> extendsList;
     private final List<TsType> implementsList;
     private final List<Class<?>> taggedUnionClasses;
+    private final Type jsonValueType;
     private final String discriminantProperty;
     private final String discriminantLiteral;
     private final TsAliasModel taggedUnionAlias;
@@ -37,7 +39,7 @@ public class TsBeanModel extends TsDeclarationModel {
             TsConstructorModel constructor,
             List<TsMethodModel> methods,
             List<String> comments) {
-        this(origin, category, isClass, null, name, typeParameters, parent, extendsList, implementsList, null, null, null, null, properties, constructor, methods, comments);
+        this(origin, category, isClass, null, name, typeParameters, parent, extendsList, implementsList, null, null, null, null, null, properties, constructor, methods, comments);
     }
 
     private TsBeanModel(
@@ -51,6 +53,7 @@ public class TsBeanModel extends TsDeclarationModel {
             List<TsType> extendsList,
             List<TsType> implementsList,
             List<Class<?>> taggedUnionClasses,
+            Type jsonValueType,
             String discriminantProperty,
             String discriminantLiteral,
             TsAliasModel taggedUnionAlias,
@@ -66,6 +69,7 @@ public class TsBeanModel extends TsDeclarationModel {
         this.extendsList = Utils.listFromNullable(extendsList);
         this.implementsList = Utils.listFromNullable(implementsList);
         this.taggedUnionClasses = Utils.listFromNullable(taggedUnionClasses);
+        this.jsonValueType = jsonValueType;
         this.discriminantProperty = discriminantProperty;
         this.discriminantLiteral = discriminantLiteral;
         this.taggedUnionAlias = taggedUnionAlias;
@@ -83,7 +87,7 @@ public class TsBeanModel extends TsDeclarationModel {
     }
 
     public TsBeanModel withDecorators(List<TsDecorator> decorators) {
-        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
+        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, jsonValueType, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
     }
 
     public List<TsType.GenericVariableType> getTypeParameters() {
@@ -113,6 +117,10 @@ public class TsBeanModel extends TsDeclarationModel {
         return taggedUnionClasses;
     }
 
+    public Type getJsonValueType() {
+        return jsonValueType;
+    }
+
     public String getDiscriminantProperty() {
         return discriminantProperty;
     }
@@ -122,7 +130,11 @@ public class TsBeanModel extends TsDeclarationModel {
     }
 
     public TsBeanModel withTaggedUnion(List<Class<?>> taggedUnionClasses, String discriminantProperty, String discriminantLiteral) {
-        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
+        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, jsonValueType, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
+    }
+
+    public TsBeanModel withJsonValueType(Type jsonValueType) {
+        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, jsonValueType, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
     }
 
     public TsAliasModel getTaggedUnionAlias() {
@@ -130,7 +142,7 @@ public class TsBeanModel extends TsDeclarationModel {
     }
 
     public TsBeanModel withTaggedUnionAlias(TsAliasModel taggedUnionAlias) {
-        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
+        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, jsonValueType, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
     }
 
     public List<TsPropertyModel> getProperties() {
@@ -138,7 +150,7 @@ public class TsBeanModel extends TsDeclarationModel {
     }
 
     public TsBeanModel withProperties(List<TsPropertyModel> properties) {
-        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
+        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, jsonValueType, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
     }
 
     public TsConstructorModel getConstructor() {
@@ -146,7 +158,7 @@ public class TsBeanModel extends TsDeclarationModel {
     }
 
     public TsBeanModel withConstructor(TsConstructorModel constructor) {
-        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
+        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, jsonValueType, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
     }
 
     public List<TsMethodModel> getMethods() {
@@ -154,7 +166,7 @@ public class TsBeanModel extends TsDeclarationModel {
     }
 
     public TsBeanModel withMethods(List<TsMethodModel> methods) {
-        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
+        return new TsBeanModel(origin, category, isClass, decorators, name, typeParameters, parent, extendsList, implementsList, taggedUnionClasses, jsonValueType, discriminantProperty, discriminantLiteral, taggedUnionAlias, properties, constructor, methods, comments);
     }
 
     public boolean isJaxrsApplicationClientBean() {

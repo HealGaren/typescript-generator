@@ -168,6 +168,8 @@ public class ModelCompiler {
         // after enum transformations transform Maps with rest of the enums (not unions) used in keys
         tsModel = transformNonStringEnumKeyMaps(symbolTable, tsModel);
 
+        tsModel = createAndUseJsonValueType(symbolTable, tsModel);
+
         // tagged unions
         tsModel = createAndUseTaggedUnions(symbolTable, tsModel);
 
@@ -284,13 +286,13 @@ public class ModelCompiler {
         final List<TsPropertyModel> properties = processProperties(symbolTable, model, bean);
 
         boolean isTaggedUnion = false;
-        if (bean.getDiscriminantProperty() != null && bean.getProperty(bean.getDiscriminantProperty()) == null) {
+        if (bean.getDiscriminantProperty() != null/* && bean.getProperty(bean.getDiscriminantProperty()) == null */) {
             isTaggedUnion = true;
             boolean isDisciminantProperty = true;
             final List<BeanModel> selfAndDescendants = getSelfAndDescendants(bean, children);
             final List<TsType.StringLiteralType> literals = new ArrayList<>();
             for (BeanModel descendant : selfAndDescendants) {
-                if (descendant.getDiscriminantProperty() == null || descendant.getProperty(bean.getDiscriminantProperty()) != null) {
+                if (descendant.getDiscriminantProperty() == null/* || descendant.getProperty(bean.getDiscriminantProperty()) != null */) {
                     // do not handle bean as tagged union if any descendant or it itself has duplicate discriminant property
                     isTaggedUnion = false;
                     isDisciminantProperty = false;
@@ -311,10 +313,11 @@ public class ModelCompiler {
                     ? new TsType.UnionType(literals)
                     : TsType.String;
             final TsModifierFlags modifiers = TsModifierFlags.None.setReadonly(settings.declarePropertiesAsReadOnly);
+            properties.removeIf(propertyModel -> propertyModel.name.equals(bean.getDiscriminantProperty()));
             properties.add(0, new TsPropertyModel(bean.getDiscriminantProperty(), discriminantType, modifiers, /*ownProperty*/ true, null));
         }
 
-        final TsBeanModel tsBean = new TsBeanModel(
+        TsBeanModel tsBean = new TsBeanModel(
                 bean.getOrigin(),
                 TsBeanCategory.Data,
                 isClass,
@@ -327,9 +330,14 @@ public class ModelCompiler {
                 /*constructor*/ null,
                 /*methods*/ null,
                 bean.getComments());
-        return isTaggedUnion
-                ? tsBean.withTaggedUnion(bean.getTaggedUnionClasses(), bean.getDiscriminantProperty(), bean.getDiscriminantLiteral())
-                : tsBean;
+
+         if (isTaggedUnion) {
+             tsBean = tsBean.withTaggedUnion(bean.getTaggedUnionClasses(), bean.getDiscriminantProperty(), bean.getDiscriminantLiteral());
+         }
+         if (bean.getJsonValueType() != null) {
+             tsBean = tsBean.withJsonValueType(bean.getJsonValueType());
+         }
+         return tsBean;
     }
 
     private boolean mappedToClass(Class<?> cls) {
@@ -952,7 +960,7 @@ public class ModelCompiler {
         final LinkedHashSet<TsAliasModel> typeAliases = new LinkedHashSet<>(tsModel.getTypeAliases());
         for (TsBeanModel bean : tsModel.getBeans()) {
             if (!bean.getTaggedUnionClasses().isEmpty() && bean.getDiscriminantProperty() != null) {
-                final Symbol unionName = symbolTable.getSymbol(bean.getOrigin(), "Union");
+                final Symbol unionName = symbolTable.getSymbol(bean.getOrigin(), settings.taggedUnionSuffix);
                 final boolean isGeneric = !bean.getTypeParameters().isEmpty();
                 final List<TsType> unionTypes = new ArrayList<>();
                 for (Class<?> cls : bean.getTaggedUnionClasses()) {
@@ -978,13 +986,13 @@ public class ModelCompiler {
             }
         }
         final TsModel modelWithTaggedUnions = tsModel.withBeans(beans).withTypeAliases(new ArrayList<>(typeAliases));
-        // use tagged unions
-        final TsModel modelWithUsedTaggedUnions = transformBeanPropertyTypes(modelWithTaggedUnions, new TsType.Transformer() {
+
+        final TsType.Transformer useTaggedUnions = new TsType.Transformer() {
             @Override
             public TsType transform(TsType.Context context, TsType tsType) {
                 final Class<?> cls = getOriginClass(symbolTable, tsType);
                 if (cls != null) {
-                    final Symbol unionSymbol = symbolTable.hasSymbol(cls, "Union");
+                    final Symbol unionSymbol = symbolTable.hasSymbol(cls, settings.taggedUnionSuffix);
                     if (unionSymbol != null) {
                         if (tsType instanceof TsType.GenericReferenceType) {
                             final TsType.GenericReferenceType genericReferenceType = (TsType.GenericReferenceType) tsType;
@@ -996,8 +1004,56 @@ public class ModelCompiler {
                 }
                 return tsType;
             }
-        });
+        };
+
+        // use tagged unions
+        TsModel modelWithUsedTaggedUnions = transformBeanPropertyTypes(modelWithTaggedUnions, useTaggedUnions);
+
+
+        final TsType.Transformer useTaggedUnionsInAlias = new TsType.Transformer() {
+            @Override
+            public TsType transform(TsType.Context context, TsType tsType) {
+                final Class<?> cls = getOriginClass(symbolTable, tsType);
+                if (cls != null) {
+                    final Symbol unionSymbol = symbolTable.hasSymbol(cls, settings.taggedUnionSuffix);
+                    TypeScriptGenerator.getLogger().verbose("replace alias class " + cls.getSimpleName());
+                    if (unionSymbol != null) {
+                        if (tsType instanceof TsType.GenericReferenceType) {
+                            final TsType.GenericReferenceType genericReferenceType = (TsType.GenericReferenceType) tsType;
+                            return new TsType.GenericReferenceType(unionSymbol, genericReferenceType.typeArguments);
+                        } else {
+                            return new TsType.ReferenceType(unionSymbol);
+                        }
+                    }
+                }
+                return tsType;
+            }
+        };
+
+        modelWithUsedTaggedUnions = transformTypeAlias(modelWithUsedTaggedUnions, useTaggedUnionsInAlias);
+
         return modelWithUsedTaggedUnions;
+    }
+
+
+    private TsModel createAndUseJsonValueType(final SymbolTable symbolTable, TsModel tsModel) {
+        if (settings.disableTaggedUnions) {
+            return tsModel;
+        }
+        // create tagged unions
+        final List<TsBeanModel> beans = new ArrayList<>();
+        final LinkedHashSet<TsAliasModel> typeAliases = new LinkedHashSet<>(tsModel.getTypeAliases());
+        for (TsBeanModel bean : tsModel.getBeans()) {
+            if (bean.getJsonValueType() != null) {
+                final Type jsonValueType = bean.getJsonValueType();
+                final TsType type = typeFromJava(symbolTable, jsonValueType);
+                final TsAliasModel tsAliasModel = new TsAliasModel(bean.getOrigin(), bean.getName(), bean.getTypeParameters(), type, null);
+                typeAliases.add(tsAliasModel);
+            } else {
+                beans.add(bean);
+            }
+        }
+        return tsModel.withBeans(beans).withTypeAliases(new ArrayList<>(typeAliases));
     }
 
     // example: transforms property `text: string | undefined` to `text?: string | undefined`
@@ -1137,7 +1193,7 @@ public class ModelCompiler {
         final List<TsBeanModel> beans = tsModel.getBeans();
         final List<TsAliasModel> aliases = tsModel.getTypeAliases();
         final List<TsEnumModel> enums = tsModel.getEnums();
-        if (settings.sortDeclarations) {
+        if (settings.sortDeclarations || settings.sortPropertyDeclarations) {
             for (TsBeanModel bean : beans) {
                 Collections.sort(bean.getProperties());
             }
@@ -1191,6 +1247,17 @@ public class ModelCompiler {
             newBeans.add(bean.withProperties(newProperties).withMethods(newMethods));
         }
         return tsModel.withBeans(newBeans);
+    }
+
+
+    private static TsModel transformTypeAlias(TsModel tsModel, TsType.Transformer transformer) {
+        final List<TsAliasModel> newTypeAlias = new ArrayList<>();
+        for (TsAliasModel alias : tsModel.getTypeAliases()) {
+            final TsType.Context context = new TsType.Context();
+            final TsType newAliasDefinition = TsType.transformTsType(context, alias.getDefinition(), transformer);
+            newTypeAlias.add(new TsAliasModel(alias.getOrigin(), alias.getName(), alias.getTypeParameters(), newAliasDefinition, alias.getComments()));
+        }
+        return tsModel.withTypeAliases(newTypeAlias);
     }
 
     private static Class<?> getOriginClass(SymbolTable symbolTable, TsType type) {

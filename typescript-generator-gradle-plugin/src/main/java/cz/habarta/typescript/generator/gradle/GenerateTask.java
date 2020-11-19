@@ -69,6 +69,8 @@ public class GenerateTask extends DefaultTask {
     public String removeTypeNameSuffix;
     public String addTypeNamePrefix;
     public String addTypeNameSuffix;
+    public boolean excludeTypeNamePrefixOnEnum;
+    public boolean excludeTypeNameSuffixOnEnum;
     public List<String> customTypeNaming;
     public String customTypeNamingFunction;
     public List<String> referencedFiles;
@@ -83,6 +85,7 @@ public class GenerateTask extends DefaultTask {
     public List<String> mapClassesAsClassesPatterns;
     public boolean generateConstructors;
     public boolean disableTaggedUnions;
+    public String taggedUnionSuffix;
     public boolean ignoreSwaggerAnnotations;
     public boolean generateJaxrsApplicationInterface;
     public boolean generateJaxrsApplicationClient;
@@ -98,6 +101,7 @@ public class GenerateTask extends DefaultTask {
     public String customTypeProcessor;
     public boolean sortDeclarations;
     public boolean sortTypeDeclarations;
+    public boolean sortPropertyDeclarations;
     public boolean noFileComment;
     public boolean noTslintDisable;
     public boolean noEslintDisable;
@@ -149,6 +153,8 @@ public class GenerateTask extends DefaultTask {
         settings.removeTypeNameSuffix = removeTypeNameSuffix;
         settings.addTypeNamePrefix = addTypeNamePrefix;
         settings.addTypeNameSuffix = addTypeNameSuffix;
+        settings.excludeTypeNamePrefixOnEnum = excludeTypeNamePrefixOnEnum;
+        settings.excludeTypeNameSuffixOnEnum = excludeTypeNameSuffixOnEnum;
         settings.customTypeNaming = Settings.convertToMap(customTypeNaming);
         settings.customTypeNamingFunction = customTypeNamingFunction;
         settings.referencedFiles = referencedFiles;
@@ -163,6 +169,7 @@ public class GenerateTask extends DefaultTask {
         settings.mapClassesAsClassesPatterns = mapClassesAsClassesPatterns;
         settings.generateConstructors = generateConstructors;
         settings.disableTaggedUnions = disableTaggedUnions;
+        settings.setTaggedUnionSuffix(taggedUnionSuffix);
         settings.ignoreSwaggerAnnotations = ignoreSwaggerAnnotations;
         settings.generateJaxrsApplicationInterface = generateJaxrsApplicationInterface;
         settings.generateJaxrsApplicationClient = generateJaxrsApplicationClient;
@@ -178,6 +185,7 @@ public class GenerateTask extends DefaultTask {
         settings.loadCustomTypeProcessor(classLoader, customTypeProcessor);
         settings.sortDeclarations = sortDeclarations;
         settings.sortTypeDeclarations = sortTypeDeclarations;
+        settings.sortPropertyDeclarations = sortPropertyDeclarations;
         settings.noFileComment = noFileComment;
         settings.noTslintDisable = noTslintDisable;
         settings.noEslintDisable = noEslintDisable;

@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
+import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.annotation.ObjectIdGenerators;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -47,6 +48,7 @@ import cz.habarta.typescript.generator.TypeProcessor;
 import cz.habarta.typescript.generator.TypeScriptGenerator;
 import cz.habarta.typescript.generator.compiler.EnumKind;
 import cz.habarta.typescript.generator.compiler.EnumMemberModel;
+import cz.habarta.typescript.generator.type.JTypeWithNullability;
 import cz.habarta.typescript.generator.type.JUnionType;
 import cz.habarta.typescript.generator.util.PropertyMember;
 import cz.habarta.typescript.generator.util.Utils;
@@ -310,6 +312,12 @@ public class Jackson2Parser extends ModelParser {
         } else {
             taggedUnionClasses = null;
         }
+
+        Optional<Type> jsonValueType = Optional.of(sourceClass.type)
+                .map(this::getJsonValueMethodOrField)
+                .map(valueMember -> wrapMember(settings.getTypeParser(), valueMember, null, valueMember.getName(), sourceClass.type))
+                .map(PropertyMember::getType);
+
         final Type superclass = sourceClass.type.getGenericSuperclass() == Object.class ? null : sourceClass.type.getGenericSuperclass();
         if (superclass != null) {
             addBeanToQueue(new SourceType<>(superclass, sourceClass.type, "<superClass>"));
@@ -318,7 +326,15 @@ public class Jackson2Parser extends ModelParser {
         for (Type aInterface : interfaces) {
             addBeanToQueue(new SourceType<>(aInterface, sourceClass.type, "<interface>"));
         }
-        return new BeanModel(sourceClass.type, superclass, taggedUnionClasses, discriminantProperty, discriminantLiteral, interfaces, properties, classComments);
+
+        final BeanModel resultBeanModel = new BeanModel(sourceClass.type, superclass, taggedUnionClasses, discriminantProperty, discriminantLiteral, interfaces, properties, classComments);
+        if (jsonValueType.isPresent()) {
+            final Type type = jsonValueType.get();
+            addBeanToQueue(new SourceType<>(type, sourceClass.type, "<@JsonValue>"));
+            return resultBeanModel.withJsonValueType(type);
+        } else {
+            return resultBeanModel;
+        }
     }
 
     // @JsonIdentityInfo and @JsonIdentityReference
@@ -378,7 +394,7 @@ public class Jackson2Parser extends ModelParser {
 
     private static boolean isSupported(JsonTypeInfo jsonTypeInfo) {
         return jsonTypeInfo != null &&
-                jsonTypeInfo.include() == JsonTypeInfo.As.PROPERTY &&
+                (jsonTypeInfo.include() == JsonTypeInfo.As.PROPERTY || jsonTypeInfo.include() == JsonTypeInfo.As.EXISTING_PROPERTY) &&
                 (jsonTypeInfo.use() == JsonTypeInfo.Id.NAME || jsonTypeInfo.use() == JsonTypeInfo.Id.CLASS);
     }
 
@@ -471,18 +487,35 @@ public class Jackson2Parser extends ModelParser {
         return null;
     }
 
-    private BeanHelper getBeanHelper(Class<?> beanClass) {
+    private JsonSerializer<?> createSerializer(Class<?> beanClass) throws JsonMappingException {
         if (beanClass == null) {
             return null;
         }
         if (beanClass == Enum.class) {
             return null;
         }
+        final DefaultSerializerProvider.Impl serializerProvider1 = (DefaultSerializerProvider.Impl) objectMapper.getSerializerProvider();
+        final DefaultSerializerProvider.Impl serializerProvider2 = serializerProvider1.createInstance(objectMapper.getSerializationConfig(), objectMapper.getSerializerFactory());
+        final JavaType simpleType = objectMapper.constructType(beanClass);
+        return BeanSerializerFactory.instance.createSerializer(serializerProvider2, simpleType);
+    }
+
+    private Member getJsonValueMethodOrField(Class<?> beanClass) {
+        return Stream.concat(
+                Arrays.stream(beanClass.getDeclaredFields()),
+                Arrays.stream(beanClass.getDeclaredMethods())
+        )
+                .filter(v -> {
+                    JsonValue jsonValue = v.getAnnotation(JsonValue.class);
+                    return jsonValue != null && jsonValue.value();
+                })
+                .findFirst()
+                .orElse(null);
+    }
+
+    private BeanHelper getBeanHelper(Class<?> beanClass) {
         try {
-            final DefaultSerializerProvider.Impl serializerProvider1 = (DefaultSerializerProvider.Impl) objectMapper.getSerializerProvider();
-            final DefaultSerializerProvider.Impl serializerProvider2 = serializerProvider1.createInstance(objectMapper.getSerializationConfig(), objectMapper.getSerializerFactory());
-            final JavaType simpleType = objectMapper.constructType(beanClass);
-            final JsonSerializer<?> jsonSerializer = BeanSerializerFactory.instance.createSerializer(serializerProvider2, simpleType);
+            final JsonSerializer<?> jsonSerializer = createSerializer(beanClass);
             if (jsonSerializer == null) {
                 return null;
             }

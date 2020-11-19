@@ -67,6 +67,8 @@ public class Settings {
     public String removeTypeNameSuffix = null;
     public String addTypeNamePrefix = null;
     public String addTypeNameSuffix = null;
+    public boolean excludeTypeNamePrefixOnEnum = false;
+    public boolean excludeTypeNameSuffixOnEnum = false;
     public Map<String, String> customTypeNaming = new LinkedHashMap<>();
     public String customTypeNamingFunction = null;
     public CustomTypeNamingFunction customTypeNamingFunctionImpl = null;
@@ -85,6 +87,7 @@ public class Settings {
     private Predicate<String> mapClassesAsClassesFilter = null;
     public boolean generateConstructors = false;
     public boolean disableTaggedUnions = false;
+    public String taggedUnionSuffix = "Union";
     public boolean ignoreSwaggerAnnotations = false;
     public boolean generateJaxrsApplicationInterface = false;
     public boolean generateJaxrsApplicationClient = false;
@@ -104,6 +107,7 @@ public class Settings {
     public TypeProcessor customTypeProcessor = null;
     public boolean sortDeclarations = false;
     public boolean sortTypeDeclarations = false;
+    public boolean sortPropertyDeclarations = false;
     public boolean noFileComment = false;
     public boolean noTslintDisable = false;
     public boolean noEslintDisable = false;
@@ -196,6 +200,10 @@ public class Settings {
 
     public void setIndentString(String indentString) {
         this.indentString = indentString != null ? indentString : "    ";
+    }
+
+    public void setTaggedUnionSuffix(String taggedUnionSuffix) {
+        this.taggedUnionSuffix = taggedUnionSuffix != null ? taggedUnionSuffix : "Union";
     }
 
     public void setJackson2Configuration(ClassLoader classLoader, Jackson2Configuration configuration) {

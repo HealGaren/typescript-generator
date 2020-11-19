@@ -155,18 +155,23 @@ public class SymbolTable {
                 throw new RuntimeException("Evaluating 'customTypeNamingFunction' failed.", e);
             }
         }
+
         String simpleName = cls.getSimpleName();
         if (settings.removeTypeNamePrefix != null && simpleName.startsWith(settings.removeTypeNamePrefix)) {
-            simpleName = simpleName.substring(settings.removeTypeNamePrefix.length(), simpleName.length());
+                simpleName = simpleName.substring(settings.removeTypeNamePrefix.length(), simpleName.length());
         }
         if (settings.removeTypeNameSuffix != null && simpleName.endsWith(settings.removeTypeNameSuffix)) {
             simpleName = simpleName.substring(0, simpleName.length() - settings.removeTypeNameSuffix.length());
         }
         if (settings.addTypeNamePrefix != null) {
-            simpleName = settings.addTypeNamePrefix + simpleName;
+            if (!(cls.isEnum() && settings.excludeTypeNamePrefixOnEnum)) {
+                simpleName = settings.addTypeNamePrefix + simpleName;
+            }
         }
         if (settings.addTypeNameSuffix != null) {
-            simpleName = simpleName + settings.addTypeNameSuffix;
+            if (!(cls.isEnum() && settings.excludeTypeNameSuffixOnEnum)) {
+                simpleName = simpleName + settings.addTypeNameSuffix;
+            }
         }
 
         if (settings.mapPackagesToNamespaces) {

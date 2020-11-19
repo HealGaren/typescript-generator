@@ -325,6 +325,13 @@ public class GenerateMojo extends AbstractMojo {
     @Parameter
     private String addTypeNameSuffix;
 
+    @Parameter
+    private boolean excludeTypeNamePrefixOnEnum;
+
+    @Parameter
+    private boolean excludeTypeNameSuffixOnEnum;
+
+
     /**
      * Specifies custom TypeScript names for Java classes.
      * Multiple mappings can be specified, each using this format: <code>javaClassName:typescriptName</code>.
@@ -460,6 +467,9 @@ public class GenerateMojo extends AbstractMojo {
     @Parameter
     private boolean disableTaggedUnions;
 
+    @Parameter
+    private String taggedUnionSuffix;
+
     /**
      * If <code>true</code> Swagger annotations will not be used.
      */
@@ -575,6 +585,12 @@ public class GenerateMojo extends AbstractMojo {
      */
     @Parameter
     private boolean sortTypeDeclarations;
+
+    /**
+     * If <code>true</code> TypeScript type declarations (properties) will be sorted alphabetically.
+     */
+    @Parameter
+    private boolean sortPropertyDeclarations;
 
     /**
      * If <code>true</code> generated file will not contain comment at the top.
@@ -813,6 +829,8 @@ public class GenerateMojo extends AbstractMojo {
         settings.removeTypeNameSuffix = removeTypeNameSuffix;
         settings.addTypeNamePrefix = addTypeNamePrefix;
         settings.addTypeNameSuffix = addTypeNameSuffix;
+        settings.excludeTypeNamePrefixOnEnum = excludeTypeNamePrefixOnEnum;
+        settings.excludeTypeNameSuffixOnEnum = excludeTypeNameSuffixOnEnum;
         settings.customTypeNaming = Settings.convertToMap(customTypeNaming);
         settings.customTypeNamingFunction = customTypeNamingFunction;
         settings.referencedFiles = referencedFiles;
@@ -827,6 +845,7 @@ public class GenerateMojo extends AbstractMojo {
         settings.mapClassesAsClassesPatterns = mapClassesAsClassesPatterns;
         settings.generateConstructors = generateConstructors;
         settings.disableTaggedUnions = disableTaggedUnions;
+        settings.setTaggedUnionSuffix(taggedUnionSuffix);
         settings.ignoreSwaggerAnnotations = ignoreSwaggerAnnotations;
         settings.generateJaxrsApplicationInterface = generateJaxrsApplicationInterface;
         settings.generateJaxrsApplicationClient = generateJaxrsApplicationClient;
@@ -842,6 +861,7 @@ public class GenerateMojo extends AbstractMojo {
         settings.loadCustomTypeProcessor(classLoader, customTypeProcessor);
         settings.sortDeclarations = sortDeclarations;
         settings.sortTypeDeclarations = sortTypeDeclarations;
+        settings.sortPropertyDeclarations = sortPropertyDeclarations;
         settings.noFileComment = noFileComment;
         settings.noTslintDisable = noTslintDisable;
         settings.noEslintDisable = noEslintDisable;
